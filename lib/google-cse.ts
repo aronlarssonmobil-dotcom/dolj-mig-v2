@@ -53,6 +53,12 @@ export function buildSearchQuery(
  * Execute a Google CSE query
  */
 export async function executeSearch(query: string): Promise<CSEResponse> {
+  // Return empty results if CSE is not configured
+  if (!GOOGLE_CSE_ID || !GOOGLE_API_KEY) {
+    console.warn('Google CSE not configured (GOOGLE_CSE_ID or GOOGLE_API_KEY missing). Returning empty results.')
+    return {}
+  }
+
   const url = new URL('https://www.googleapis.com/customsearch/v1')
   url.searchParams.set('key', GOOGLE_API_KEY)
   url.searchParams.set('cx', GOOGLE_CSE_ID)

@@ -32,5 +32,10 @@ export async function GET(
     return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ scan })
+  // Return in the format the scan page poll expects: { status, results }
+  return NextResponse.json({
+    status: scan.status,
+    results: scan.scan_results || [],
+    scan,
+  })
 }

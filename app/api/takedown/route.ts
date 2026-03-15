@@ -16,14 +16,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { scanResultId: string }
+  let body: { scanResultId?: string; scan_result_id?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { scanResultId } = body
+  // Accept both camelCase and snake_case variants
+  const scanResultId = body.scanResultId || body.scan_result_id
   if (!scanResultId) {
     return NextResponse.json({ error: 'scanResultId is required' }, { status: 400 })
   }

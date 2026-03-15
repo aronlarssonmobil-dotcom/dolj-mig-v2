@@ -14,39 +14,95 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { personId: string }
+  let body: {
+    fullName?: string
+    personnummer?: string
+    address?: string
+    city?: string
+    personId?: string
+  }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { personId } = body
-  if (!personId) {
-    return NextResponse.json({ error: 'personId is required' }, { status: 400 })
+  let personId: string
+
+  // Support both old (personId) and new (form data) flows
+  if (body.personId) {
+    // Legacy: verify person belongs to user
+    const { data: existingPerson, error: personError } = await supabase
+      .from('protected_persons')
+      .select('id')
+      .eq('id', body.personId)
+      .eq('profile_id', user.id)
+      .single()
+
+    if (personError || !existingPerson) {
+      return NextResponse.json({ error: 'Person not found' }, { status: 404 })
+    }
+    personId = body.personId
+  } else {
+    // New flow: accept raw form data, upsert protected_person
+    const { fullName, personnummer, address, city } = body
+
+    if (!fullName?.trim()) {
+      return NextResponse.json({ error: 'fullName is required' }, { status: 400 })
+    }
+
+    // Upsert: find existing person for this user with same name, or create new
+    const { data: existingPersons } = await supabase
+      .from('protected_persons')
+      .select('id')
+      .eq('profile_id', user.id)
+      .ilike('full_name', fullName.trim())
+      .limit(1)
+
+    if (existingPersons && existingPersons.length > 0) {
+      // Update existing person with latest data
+      const existing = existingPersons[0]
+      await supabase
+        .from('protected_persons')
+        .update({
+          pnr: personnummer || null,
+          address: address || null,
+          city: city || null,
+        })
+        .eq('id', existing.id)
+      personId = existing.id
+    } else {
+      // Create new protected person
+      const { data: newPerson, error: createError } = await supabase
+        .from('protected_persons')
+        .insert({
+          profile_id: user.id,
+          full_name: fullName.trim(),
+          pnr: personnummer || null,
+          address: address || null,
+          city: city || null,
+          is_active: true,
+        })
+        .select('id')
+        .single()
+
+      if (createError || !newPerson) {
+        console.error('Failed to create person:', createError)
+        return NextResponse.json({ error: 'Failed to create person record' }, { status: 500 })
+      }
+      personId = newPerson.id
+    }
   }
 
-  // Verify person belongs to user
-  const { data: person, error: personError } = await supabase
+  // Fetch person details for the scan
+  const { data: person } = await supabase
     .from('protected_persons')
-    .select('*, profiles!inner(id)')
+    .select('full_name, pnr')
     .eq('id', personId)
-    .eq('profiles.id', user.id)
     .single()
 
-  if (personError || !person) {
+  if (!person) {
     return NextResponse.json({ error: 'Person not found' }, { status: 404 })
-  }
-
-  // Check subscription
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('subscription_status')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.subscription_status !== 'active') {
-    return NextResponse.json({ error: 'Active subscription required' }, { status: 403 })
   }
 
   // Create scan record
@@ -67,28 +123,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create scan' }, { status: 500 })
   }
 
-  // Run scan asynchronously (don't await) and return scan ID immediately
-  runScan(scan.id, person.full_name, person.pnr, personId).catch(console.error)
-
-  return NextResponse.json({ scanId: scan.id, status: 'running' }, { status: 202 })
-}
-
-async function runScan(
-  scanId: string,
-  fullName: string,
-  pnr: string | null,
-  personId: string
-) {
-  // Use service role for background work
-  const { createServiceClient } = await import('@/lib/supabase/server')
-  const supabase = await createServiceClient()
-
+  // Run scan synchronously (works reliably in serverless)
   try {
-    const siteResults = await scanAllSites(fullName, pnr)
+    const siteResults = await scanAllSites(person.full_name, person.pnr)
 
     // Insert scan results
     const scanResults = siteResults.map((r) => ({
-      scan_id: scanId,
+      scan_id: scan.id,
       site: r.site,
       found: r.found,
       profile_url: r.profile_url,
@@ -96,7 +137,10 @@ async function runScan(
       snippet: r.snippet,
     }))
 
-    await supabase.from('scan_results').insert(scanResults)
+    const { data: insertedResults } = await supabase
+      .from('scan_results')
+      .insert(scanResults)
+      .select()
 
     // Mark scan as completed
     await supabase
@@ -106,13 +150,21 @@ async function runScan(
         raw_results: siteResults as unknown as Record<string, unknown>,
         completed_at: new Date().toISOString(),
       })
-      .eq('id', scanId)
+      .eq('id', scan.id)
+
+    // Return results directly so the UI doesn't need to poll
+    return NextResponse.json({
+      scanId: scan.id,
+      results: (insertedResults || scanResults.map((r, i) => ({ ...r, id: `temp-${i}` }))),
+    })
   } catch (error) {
-    console.error(`Scan ${scanId} failed:`, error)
+    console.error(`Scan ${scan.id} failed:`, error)
     await supabase
       .from('scans')
       .update({ status: 'failed', completed_at: new Date().toISOString() })
-      .eq('id', scanId)
+      .eq('id', scan.id)
+
+    return NextResponse.json({ error: 'Scan failed. Please try again.' }, { status: 500 })
   }
 }
 
