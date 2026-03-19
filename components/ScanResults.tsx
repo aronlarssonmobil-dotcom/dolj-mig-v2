@@ -19,6 +19,7 @@ export interface ScanResult {
   profile_url?: string | null
   title?: string | null
   snippet?: string | null
+  exposed_fields?: Array<{ label: string; value: string; sensitive: boolean }> | null
 }
 
 interface ScanResultsProps {
@@ -160,6 +161,23 @@ function FoundCard({
 
       {result.snippet && (
         <p className="text-white/30 text-xs leading-relaxed line-clamp-2">{result.snippet}</p>
+      )}
+
+      {result.exposed_fields && result.exposed_fields.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {result.exposed_fields.map((field, i) => (
+            <span
+              key={i}
+              className={`text-xs px-2 py-0.5 rounded-full border ${
+                field.sensitive
+                  ? 'bg-red-500/10 border-red-500/20 text-red-300'
+                  : 'bg-white/5 border-white/10 text-white/50'
+              }`}
+            >
+              ⚠️ {field.label}
+            </span>
+          ))}
+        </div>
       )}
 
       <div className="flex flex-col gap-2">
