@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       profile_url: r.profile_url,
       title: r.title,
       snippet: r.snippet,
+      exposed_fields: r.exposed_fields || [],
     }))
 
     const { data: insertedResults } = await supabase
