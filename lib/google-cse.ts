@@ -1,4 +1,6 @@
 import { SupportedSite, SUPPORTED_SITES } from '@/types'
+import { scrapeProfile, ExposedField } from './profile-scraper'
+import { buildDirectUrls, checkUrl } from './direct-urls'
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!
 const GOOGLE_CSE_ID = process.env.GOOGLE_CSE_ID!
@@ -30,6 +32,7 @@ export interface SiteMatch {
   profile_url: string | null
   title: string | null
   snippet: string | null
+  exposed_fields?: ExposedField[]
 }
 
 /**
@@ -80,21 +83,46 @@ export async function executeSearch(query: string): Promise<CSEResponse> {
 }
 
 /**
+ * Normalize a string for URL comparison (removes Swedish chars, spaces, etc.)
+ */
+function normalizeForUrl(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/å/g, 'a')
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/é/g, 'e')
+    .replace(/ü/g, 'u')
+    .replace(/ø/g, 'o')
+    .replace(/æ/g, 'a')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+/**
  * Determine if a CSE result is a real profile match vs generic page
  */
 function isProfileMatch(item: CSEItem, fullName: string, site: SupportedSite): boolean {
   const nameLower = fullName.toLowerCase()
+  const nameNormalized = normalizeForUrl(fullName)
   const titleLower = item.title.toLowerCase()
   const snippetLower = item.snippet.toLowerCase()
   const linkLower = item.link.toLowerCase()
 
   // Name must appear somewhere in title, snippet, or URL
+  // Also check normalized versions to handle Swedish chars in URLs (björn → bjorn)
   const nameParts = nameLower.split(' ')
+  const namePartsNormalized = nameNormalized.split('').length > 0
+    ? fullName.toLowerCase().split(' ').map(p => normalizeForUrl(p))
+    : []
+
   const nameInContent = nameParts.every(
     (part) =>
       titleLower.includes(part) ||
       snippetLower.includes(part) ||
-      linkLower.includes(part)
+      linkLower.includes(part) ||
+      titleLower.includes(normalizeForUrl(part)) ||
+      snippetLower.includes(normalizeForUrl(part)) ||
+      linkLower.includes(normalizeForUrl(part))
   )
 
   if (!nameInContent) return false
@@ -122,6 +150,28 @@ export async function scanSite(
   site: SupportedSite,
   pnr?: string | null
 ): Promise<SiteMatch> {
+  // First try direct URL if we have personnummer
+  if (pnr) {
+    const directUrls = buildDirectUrls(fullName, pnr)
+    const direct = directUrls.find(d => d.site === site)
+
+    if (direct?.profileUrl) {
+      const exists = await checkUrl(direct.profileUrl)
+      if (exists) {
+        const scraped = await scrapeProfile(direct.profileUrl, site)
+        return {
+          site,
+          found: true,
+          profile_url: direct.profileUrl,
+          title: `${fullName} på ${site}`,
+          snippet: scraped.fields.map(f => `${f.label}: ${f.value}`).join(' · ') || null,
+          exposed_fields: scraped.fields,
+        }
+      }
+    }
+  }
+
+  // Fallback: Google CSE
   const query = buildSearchQuery(fullName, site, pnr)
 
   try {
@@ -136,16 +186,17 @@ export async function scanSite(
       return { site, found: false, profile_url: null, title: null, snippet: null }
     }
 
-    // Find the best matching result
     const match = response.items.find((item) => isProfileMatch(item, fullName, site))
 
     if (match) {
+      const scraped = await scrapeProfile(match.link, site)
       return {
         site,
         found: true,
         profile_url: match.link,
         title: match.title,
         snippet: match.snippet,
+        exposed_fields: scraped.fields,
       }
     }
 
