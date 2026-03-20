@@ -194,7 +194,7 @@ export async function scanAllSites(
   }
 
   const results: SiteMatch[] = await Promise.all(
-    SUPPORTED_SITES.map(async (site) => {
+    SUPPORTED_SITES.map(async (site: SupportedSite) => {
       const check = checks[site]
       if (!check.found || !check.url) {
         return { site, found: false, profile_url: check.url, title: null, snippet: null }
