@@ -1,30 +1,10 @@
-import { SupportedSite, SUPPORTED_SITES } from '@/types'
+export const dynamic = 'force-dynamic'
+import type { SupportedSite } from '@/types'
+import { SUPPORTED_SITES } from '@/types'
 import { scrapeProfile, ExposedField } from './profile-scraper'
-import { buildDirectUrls, checkUrl } from './direct-urls'
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!
 const GOOGLE_CSE_ID = process.env.GOOGLE_CSE_ID!
-
-export interface CSEItem {
-  title: string
-  link: string
-  snippet: string
-  displayLink: string
-  pagemap?: Record<string, unknown>
-}
-
-export interface CSEResponse {
-  items?: CSEItem[]
-  searchInformation?: {
-    totalResults: string
-    searchTime: number
-  }
-  error?: {
-    code: number
-    message: string
-    status: string
-  }
-}
 
 export interface SiteMatch {
   site: SupportedSite
@@ -35,210 +15,151 @@ export interface SiteMatch {
   exposed_fields?: ExposedField[]
 }
 
-/**
- * Build a site-restricted Google query for a person
- */
-export function buildSearchQuery(
-  fullName: string,
-  site: SupportedSite,
-  pnr?: string | null
-): string {
-  const namePart = `"${fullName}"`
-  const sitePart = `site:${site}`
-  if (pnr) {
-    const shortPnr = pnr.replace('-', '').slice(0, 6)
-    return `${namePart} ${sitePart} ${shortPnr}`
-  }
-  return `${namePart} ${sitePart}`
+export interface CSEItem {
+  title: string
+  link: string
+  snippet: string
+  displayLink: string
 }
 
-/**
- * Execute a Google CSE query
- */
-export async function executeSearch(query: string): Promise<CSEResponse> {
-  // Return empty results if CSE is not configured
-  if (!GOOGLE_CSE_ID || !GOOGLE_API_KEY) {
-    console.warn('Google CSE not configured (GOOGLE_CSE_ID or GOOGLE_API_KEY missing). Returning empty results.')
-    return {}
-  }
+function normalizeForUrl(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/å/g, 'a').replace(/ä/g, 'a').replace(/ö/g, 'o')
+    .replace(/é/g, 'e').replace(/ü/g, 'u').replace(/ø/g, 'o').replace(/æ/g, 'a')
+    .replace(/[^a-z0-9]/g, '')
+}
 
+function buildDirectUrl(site: SupportedSite, fullName: string, pnr: string | null): string | null {
+  if (!pnr) return null
+  const digits = pnr.replace(/\D/g, '')
+  const pnr10 = digits.length === 12 ? digits.slice(2) : digits.slice(-10)
+  const pnrShort = pnr10.slice(0, 6)
+  const parts = fullName.trim().split(/\s+/)
+  const first = parts[0] || ''
+  const last = parts[parts.length - 1] || ''
+  function slug(s: string) {
+    return normalizeForUrl(s) || s.toLowerCase()
+  }
+  switch (site) {
+    case 'ratsit.se':
+      return `https://www.ratsit.se/${pnr10.slice(0,6)}-${pnr10.slice(6)}/${first}-${last}`
+    case 'mrkoll.se':
+      return `https://mrkoll.se/person/${slug(first)}-${slug(last)}-${pnrShort}/`
+    case 'merinfo.se':
+      return `https://www.merinfo.se/search?who=${encodeURIComponent(fullName)}&where=`
+    default:
+      return null
+  }
+}
+
+async function searchGoogle(query: string, start = 1): Promise<CSEItem[]> {
+  if (!GOOGLE_CSE_ID || !GOOGLE_API_KEY) return []
   const url = new URL('https://www.googleapis.com/customsearch/v1')
   url.searchParams.set('key', GOOGLE_API_KEY)
   url.searchParams.set('cx', GOOGLE_CSE_ID)
   url.searchParams.set('q', query)
-  url.searchParams.set('num', '5')
+  url.searchParams.set('num', '10')
   url.searchParams.set('hl', 'sv')
   url.searchParams.set('gl', 'se')
-
-  const res = await fetch(url.toString(), {
-    next: { revalidate: 0 },
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Google CSE HTTP ${res.status}: ${text}`)
-  }
-
-  return res.json() as Promise<CSEResponse>
-}
-
-/**
- * Normalize a string for URL comparison (removes Swedish chars, spaces, etc.)
- */
-function normalizeForUrl(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/å/g, 'a')
-    .replace(/ä/g, 'a')
-    .replace(/ö/g, 'o')
-    .replace(/é/g, 'e')
-    .replace(/ü/g, 'u')
-    .replace(/ø/g, 'o')
-    .replace(/æ/g, 'a')
-    .replace(/[^a-z0-9]/g, '')
-}
-
-/**
- * Determine if a CSE result is a real profile match vs generic page
- */
-function isProfileMatch(item: CSEItem, fullName: string, site: SupportedSite): boolean {
-  const nameLower = fullName.toLowerCase()
-  const nameNormalized = normalizeForUrl(fullName)
-  const titleLower = item.title.toLowerCase()
-  const snippetLower = item.snippet.toLowerCase()
-  const linkLower = item.link.toLowerCase()
-
-  // Name must appear somewhere in title, snippet, or URL
-  // Also check normalized versions to handle Swedish chars in URLs (björn → bjorn)
-  const nameParts = nameLower.split(' ')
-  const namePartsNormalized = nameNormalized.split('').length > 0
-    ? fullName.toLowerCase().split(' ').map(p => normalizeForUrl(p))
-    : []
-
-  const nameInContent = nameParts.every(
-    (part) =>
-      titleLower.includes(part) ||
-      snippetLower.includes(part) ||
-      linkLower.includes(part) ||
-      titleLower.includes(normalizeForUrl(part)) ||
-      snippetLower.includes(normalizeForUrl(part)) ||
-      linkLower.includes(normalizeForUrl(part))
-  )
-
-  if (!nameInContent) return false
-
-  // Site-specific URL patterns that indicate a real person profile
-  const profilePatterns: Record<SupportedSite, RegExp[]> = {
-    'ratsit.se': [/ratsit\.se\/.+\/\d+/i, /ratsit\.se\/vem\//i],
-    'mrkoll.se': [/mrkoll\.se\/person/i, /mrkoll\.se\/[a-z]+\//i],
-    'merinfo.se': [/merinfo\.se\/[a-z]/i],
-    'hitta.se': [/hitta\.se\/person/i, /hitta\.se\/[a-z]/i],
-    'eniro.se': [/eniro\.se\/[a-z]/i, /eniro\.se\/p\//i],
-    'birthday.se': [/birthday\.se\/[a-z]/i],
-    'upplysning.se': [/upplysning\.se\/[a-z]/i],
-  }
-
-  const patterns = profilePatterns[site]
-  return patterns.some((pattern) => pattern.test(item.link))
-}
-
-/**
- * Scan a single site for a person
- */
-export async function scanSite(
-  fullName: string,
-  site: SupportedSite,
-  pnr?: string | null
-): Promise<SiteMatch> {
-  // First try direct URL if we have personnummer
-  if (pnr) {
-    const directUrls = buildDirectUrls(fullName, pnr)
-    const direct = directUrls.find(d => d.site === site)
-
-    if (direct?.profileUrl) {
-      const exists = await checkUrl(direct.profileUrl)
-      if (exists) {
-        const scraped = await scrapeProfile(direct.profileUrl, site)
-        return {
-          site,
-          found: true,
-          profile_url: direct.profileUrl,
-          title: `${fullName} på ${site}`,
-          snippet: scraped.fields.map(f => `${f.label}: ${f.value}`).join(' · ') || null,
-          exposed_fields: scraped.fields,
-        }
-      }
-    }
-  }
-
-  // Fallback: Google CSE
-  const query = buildSearchQuery(fullName, site, pnr)
-
+  if (start > 1) url.searchParams.set('start', String(start))
   try {
-    const response = await executeSearch(query)
-
-    if (response.error) {
-      console.error(`CSE error for ${site}:`, response.error)
-      return { site, found: false, profile_url: null, title: null, snippet: null }
-    }
-
-    if (!response.items || response.items.length === 0) {
-      return { site, found: false, profile_url: null, title: null, snippet: null }
-    }
-
-    const match = response.items.find((item) => isProfileMatch(item, fullName, site))
-
-    if (match) {
-      const scraped = await scrapeProfile(match.link, site)
-      return {
-        site,
-        found: true,
-        profile_url: match.link,
-        title: match.title,
-        snippet: match.snippet,
-        exposed_fields: scraped.fields,
-      }
-    }
-
-    return { site, found: false, profile_url: null, title: null, snippet: null }
-  } catch (error) {
-    console.error(`Error scanning ${site}:`, error)
-    return { site, found: false, profile_url: null, title: null, snippet: null }
+    const res = await fetch(url.toString(), { next: { revalidate: 0 } })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.items || []
+  } catch {
+    return []
   }
 }
 
-/**
- * Scan all sites for a person — runs sequentially to respect CSE rate limits
- */
+function matchItemToSite(item: CSEItem): SupportedSite | null {
+  const link = item.link.toLowerCase()
+  const display = (item.displayLink || '').toLowerCase()
+  for (const site of SUPPORTED_SITES) {
+    if (link.includes(site) || display.includes(site)) return site
+  }
+  return null
+}
+
+function isPersonProfile(item: CSEItem, fullName: string): boolean {
+  const nameParts = fullName.toLowerCase().split(/\s+/)
+  const text = `${item.title} ${item.snippet} ${item.link}`.toLowerCase()
+  const textNorm = normalizeForUrl(text)
+  return nameParts.some(part => text.includes(part) || textNorm.includes(normalizeForUrl(part)))
+}
+
 export async function scanAllSites(
   fullName: string,
   pnr?: string | null,
   address?: string | null
 ): Promise<SiteMatch[]> {
-  const results: SiteMatch[] = []
+  const pnrPart = pnr ? pnr.replace(/\D/g, '').slice(-10).slice(0, 6) : ''
+  const query = pnrPart
+    ? `"${fullName}" ${pnrPart}`
+    : `"${fullName}" (site:mrkoll.se OR site:ratsit.se OR site:merinfo.se OR site:hitta.se OR site:eniro.se OR site:birthday.se OR site:upplysning.se)`
 
-  for (const site of SUPPORTED_SITES) {
-    const result = await scanSite(fullName, site, pnr)
-    results.push(result)
-    // Small delay to avoid quota burst
-    await new Promise((resolve) => setTimeout(resolve, 200))
+  const [page1, page2] = await Promise.all([
+    searchGoogle(query, 1),
+    searchGoogle(query, 11),
+  ])
+  const allItems = [...page1, ...page2]
+
+  const siteMap: Record<string, CSEItem> = {}
+  for (const item of allItems) {
+    const site = matchItemToSite(item)
+    if (site && !siteMap[site] && isPersonProfile(item, fullName)) {
+      siteMap[site] = item
+    }
   }
+
+  const results: SiteMatch[] = await Promise.all(
+    SUPPORTED_SITES.map(async (site) => {
+      const item = siteMap[site]
+
+      if (!item && pnr) {
+        const directUrl = buildDirectUrl(site, fullName, pnr)
+        if (directUrl) {
+          try {
+            const res = await fetch(directUrl, {
+              method: 'HEAD',
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' },
+              signal: AbortSignal.timeout(4000),
+              redirect: 'follow',
+            })
+            if (res.ok) {
+              const scraped = await scrapeProfile(directUrl, site)
+              return {
+                site, found: true, profile_url: directUrl,
+                title: `${fullName} på ${site}`,
+                snippet: scraped.fields.map(f => `${f.label}: ${f.value}`).join(' · ') || null,
+                exposed_fields: scraped.fields,
+              }
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      if (!item) return { site, found: false, profile_url: null, title: null, snippet: null }
+
+      const scraped = await scrapeProfile(item.link, site)
+      return {
+        site, found: true, profile_url: item.link,
+        title: item.title, snippet: item.snippet,
+        exposed_fields: scraped.fields,
+      }
+    })
+  )
 
   return results
 }
 
-/**
- * Build a combined query string for display / logging
- */
-export function buildCombinedQuery(
-  fullName: string,
-  pnr?: string | null
-): string {
-  const sites = SUPPORTED_SITES.map((s) => `site:${s}`).join(' OR ')
-  const namePart = `"${fullName}"`
-  if (pnr) {
-    const shortPnr = pnr.replace('-', '').slice(0, 6)
-    return `${namePart} (${sites}) ${shortPnr}`
-  }
-  return `${namePart} (${sites})`
+export function buildCombinedQuery(fullName: string, pnr?: string | null): string {
+  const pnrPart = pnr ? pnr.replace(/\D/g, '').slice(-10).slice(0, 6) : ''
+  return pnrPart ? `"${fullName}" ${pnrPart}` : `"${fullName}"`
+}
+
+export async function scanSite(fullName: string, site: SupportedSite, pnr?: string | null): Promise<SiteMatch> {
+  const results = await scanAllSites(fullName, pnr)
+  return results.find(r => r.site === site) || { site, found: false, profile_url: null, title: null, snippet: null }
 }
