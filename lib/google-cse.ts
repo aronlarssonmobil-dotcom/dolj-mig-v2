@@ -172,6 +172,7 @@ async function checkUpplysning(fullName: string): Promise<{ found: boolean; url:
 export async function scanAllSites(
   fullName: string,
   pnr?: string | null,
+  address?: string | null,
 ): Promise<SiteMatch[]> {
   const [ratsit, mrkoll, merinfo, hitta, eniro, birthday, upplysning] = await Promise.all([
     checkRatsit(fullName, pnr ?? null),
