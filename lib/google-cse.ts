@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import type { SupportedSite } from '@/types'
 import { SUPPORTED_SITES } from '@/types'
 import { scrapeProfile, ExposedField } from './profile-scraper'
+import { scanAllSitesBrave, buildCombinedQuery as buildBraveCombinedQuery } from './brave-search'
 
 export interface SiteMatch {
   site: SupportedSite
@@ -151,11 +152,31 @@ async function findUpplysning(fullName: string): Promise<{ found: boolean; url: 
   return { found: false, url: searchUrl }
 }
 
+/**
+ * scanAllSites — primary entry point for scanning.
+ *
+ * Strategy:
+ * 1. PRODUCTION (Vercel): use Brave Search API (env BRAVE_API_KEY required)
+ * 2. LOCAL DEV fallback: direct HTTP scraping (USE_PLAYWRIGHT or no BRAVE_API_KEY)
+ *    — original approach, blocked by Cloudflare in prod but works fine locally
+ */
 export async function scanAllSites(
   fullName: string,
   pnr?: string | null,
   address?: string | null,
 ): Promise<SiteMatch[]> {
+  const useBrave =
+    !!process.env.BRAVE_API_KEY &&
+    process.env.USE_PLAYWRIGHT !== 'true'
+
+  if (useBrave) {
+    console.log('[scan] Using Brave Search API')
+    return scanAllSitesBrave(fullName, pnr)
+  }
+
+  // Local-only fallback: direct HTTP fetching (works when not behind Cloudflare)
+  console.log('[scan] Using direct HTTP fallback (local dev only)')
+
   const [ratsit, mrkoll, merinfo, hitta, eniro, birthday, upplysning] = await Promise.all([
     findRatsit(fullName, pnr ?? null),
     findMrkoll(fullName, pnr ?? null),
@@ -197,8 +218,7 @@ export async function scanAllSites(
 }
 
 export function buildCombinedQuery(fullName: string, pnr?: string | null): string {
-  const pnrShort = pnr ? pnr.replace(/\D/g, '').slice(-10).slice(0, 6) : ''
-  return pnrShort ? `"${fullName}" ${pnrShort}` : `"${fullName}"`
+  return buildBraveCombinedQuery(fullName, pnr)
 }
 
 export async function scanSite(fullName: string, site: SupportedSite, pnr?: string | null): Promise<SiteMatch> {

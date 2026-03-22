@@ -8,7 +8,7 @@
 |--------|---------|
 | Vercel | **Gratis** |
 | Supabase | **Gratis** (500 MB) |
-| Google CSE | **Gratis** (100 sök/dag) |
+| Brave Search API | **Gratis** (2 000 sök/mån) → $0.50/1 000 därefter |
 | Resend | **Gratis** (3 000 mail/mån) |
 | Stripe | **Gratis** — tar bara % när du får betalt (1.4% + 0.25€/transaktion) |
 | dolj-mig.se | ~100 kr/år — enda riktiga kostnaden |
@@ -36,14 +36,13 @@
 
 ---
 
-## Steg 3 — Google Custom Search (3 min)
+## Steg 3 — Brave Search API (2 min)
 
-1. Gå till [console.cloud.google.com](https://console.cloud.google.com)
-2. Skapa nytt projekt → **APIs & Services → Enable APIs** → sök "Custom Search API" → Enable
-3. **Credentials → Create Credentials → API Key** → kopiera → det är din `GOOGLE_API_KEY`
-4. Gå till [programmablesearchengine.google.com](https://programmablesearchengine.google.com) → **New search engine**
-   - Search the entire web: **ON**
-   - Kopiera **Search engine ID** → det är din `GOOGLE_CSE_ID`
+> Brave Search kringgår Cloudflare och fungerar på Vercel gratis. Gratis upp till 2 000 sök/mån.
+
+1. Gå till [api.search.brave.com/register](https://api.search.brave.com/register) → registrera konto
+2. Välj **Free plan** (Data for Search API)
+3. Skapa en **API Key** → kopiera nyckeln → det är din `BRAVE_API_KEY`
 
 ---
 
@@ -88,8 +87,8 @@ STRIPE_PRICE_FAMILY=                # från Steg 4
 RESEND_API_KEY=                     # från Steg 2
 EMAIL_FROM=noreply@dolj-mig.se
 
-GOOGLE_API_KEY=                     # från Steg 3
-GOOGLE_CSE_ID=                      # från Steg 3
+BRAVE_API_KEY=                       # från Steg 3 — krävs för scanning i production
+# USE_PLAYWRIGHT=true               # sätt lokalt om du vill testa direct HTTP-scraping
 
 CRON_SECRET=f1e675e5226d23c45b56f9a5a75897e445703b314435a5bfa942b7a2fdc21465
 NEXT_PUBLIC_APP_URL=https://dolj-mig.se
