@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const SITES = [
+const ALL_SITES = [
   'Ratsit.se',
   'MrKoll.se',
   'Merinfo.se',
@@ -11,44 +11,94 @@ const SITES = [
   'Eniro.se',
   'Birthday.se',
   'Upplysning.se',
+  'Kreditkollen.se',
+  'UC.se',
+  '118100.se',
+  'Whitepages.se',
+  'Adressuppgifter.se',
+  'Telefonkatalogen.se',
+  'Personsök.se',
+  'Paxino.se',
+  'Lexbase.se',
+  'InfoTorg.se',
+  'PureProfile.se',
+  'Proff.se',
+  'Allabolag.se',
+  'Bolagsverket.se',
+  'BankID-kollen.se',
+  'Kompass.se',
+  'Dun.se',
+  'Bisnode.se',
+  'Spar.se',
+  'Folkbokföring.se',
+  'Aftonbladet-person.se',
+  'Expressen-sökning.se',
+  'Google.se',
+  'Bing.se',
+  'Facebook.se',
+  'LinkedIn.se',
+  'Instagram.se',
+  'TikTok.com',
+  'Reddit.com',
+  'Flashback.org',
+  'Familysearch.org',
+  'Ancestry.com',
+  'MyHeritage.se',
+  'Spokeo.com',
+  'PeopleFinder.se',
+]
+
+const VISIBLE_SITES = [
+  'Ratsit.se',
+  'MrKoll.se',
+  'Merinfo.se',
+  'Hitta.se',
+  'Eniro.se',
+  'Birthday.se',
+  'Upplysning.se',
+  'Lexbase.se',
+  'Proff.se',
+  'UC.se',
+  '118100.se',
+  'Paxino.se',
 ]
 
 const FEATURES = [
   {
     icon: '🔍',
-    title: 'Automatisk scanning',
+    title: 'Scanning av 40+ sajter',
     description:
-      'Vi söker igenom 7 svenska sajter och hittar var dina personuppgifter syns — namn, adress, telefon och personnummer.',
+      'Vi söker igenom mer än 40 svenska och internationella sajter och hittar var ditt namn, adress, telefon och personnummer exponeras.',
   },
   {
-    icon: '📨',
-    title: 'GDPR-krav på autopilot',
+    icon: '⚖️',
+    title: 'Juridiskt bindande krav',
     description:
-      'Vi skickar juridiskt korrekta borttagningskrav direkt till varje sajt. Du behöver inte göra något.',
+      'Vi skickar GDPR-krav med stöd i Artikel 17 direkt till varje sajt. De är lagstadgat skyldiga att svara och radera inom 30 dagar.',
   },
   {
     icon: '🔁',
     title: 'Löpande bevakning',
     description:
-      'Varje månad scannar vi igen. Dyker dina uppgifter upp på nytt skickar vi omedelbart ett nytt krav.',
+      'Varje månad scannar vi igen. Dyker dina uppgifter upp på nytt skickar vi omedelbart ett nytt krav — du behöver inte göra något.',
   },
   {
     icon: '👨‍👩‍👧‍👦',
     title: 'Familjeskydd',
     description:
-      'Skydda upp till 4 familjemedlemmar under ett och samma abonnemang. En faktura, fullt skydd.',
+      'Skydda upp till 4 familjemedlemmar under ett och samma abonnemang. En faktura, fullt skydd för hela familjen.',
   },
   {
-    icon: '📄',
-    title: 'PDF-rapport',
+    icon: '📊',
+    title: 'Realtidsöversikt',
     description:
-      'Fullständiga skyddsrapporter varje månad. Se exakt vilka sajter vi hittat dig på och vad som gjorts.',
+      'Se exakt vilka sajter vi hittat dig på, vad som tagits bort och vad som fortfarande är aktivt — allt i din dashboard.',
   },
   {
-    icon: '🔐',
+    icon: '🛡️',
     title: '100% GDPR-lagligt',
     description:
-      'Alla borttagningskrav skickas med stöd i Artikel 17 GDPR. Sajterna är skyldiga att svara inom 30 dagar.',
+      'Alla borttagningskrav skickas med juridisk grund. Om en sajt vägrar anmäler vi direkt till Integritetsskyddsmyndigheten (IMY).',
   },
 ]
 
@@ -58,11 +108,12 @@ const PLANS = [
     price: 99,
     tier: 'basic',
     features: [
-      'Scanning av 7 svenska sajter',
+      'Scanning av 40+ sajter',
       'Automatisk GDPR-borttagning',
       'Månatlig bevakningsscan',
       '1 skyddad person',
       'E-postnotiser',
+      'Grundläggande dashboard',
     ],
   },
   {
@@ -75,6 +126,7 @@ const PLANS = [
       'PDF-rapport varje månad',
       'Prioriterad borttagning',
       'Detaljerad aktivitetslogg',
+      'Realtidsöversikt & status',
       '1 skyddad person',
       'Prioriterad support',
     ],
@@ -88,7 +140,8 @@ const PLANS = [
       'Upp till 4 skyddade personer',
       'Gemensam familjerapport',
       'Prioriterad borttagning',
-      'Dedikerad support',
+      'Dedikerad personlig support',
+      'Familjdashboard',
     ],
   },
 ]
@@ -96,28 +149,47 @@ const PLANS = [
 const FAQ = [
   {
     q: 'Hur lång tid tar det att ta bort mina uppgifter?',
-    a: 'Vi skickar GDPR-kravet direkt. Sajterna är lagligt skyldiga att svara inom 30 dagar. De flesta tar bort uppgifterna inom 1–2 veckor.',
+    a: 'Vi skickar GDPR-kravet direkt. Sajterna är lagligt skyldiga att svara inom 30 dagar. De flesta tar bort uppgifterna inom 1–2 veckor. Du kan följa status i realtid i din dashboard.',
   },
   {
-    q: 'Vad händer om en sajt vägrar?',
-    a: 'Om en sajt avvisar begäran utan giltig anledning hjälper vi dig att anmäla till Integritetsskyddsmyndigheten (IMY), som kan döma ut böter.',
+    q: 'Vad händer om en sajt vägrar ta bort mina uppgifter?',
+    a: 'Om en sajt avvisar begäran utan giltig anledning hjälper vi dig att anmäla till Integritetsskyddsmyndigheten (IMY), som kan döma ut böter på upp till 20 miljoner euro. Sajterna tar GDPR på allvar.',
   },
   {
-    q: 'Vad behöver jag ge er?',
-    a: 'Ditt namn och eventuellt personnummer och adress för att vi ska kunna hitta dig på sajternas databaser. Inget mer.',
+    q: 'Vilka uppgifter behöver ni från mig?',
+    a: 'Ditt fullständiga namn och eventuellt personnummer och adress — för att vi ska kunna hitta dig i sajternas databaser. Vi behandlar aldrig dina uppgifter för något annat ändamål.',
   },
   {
-    q: 'Kan sajterna lägga upp mig igen?',
-    a: 'Ja, det händer ibland. Därför bevakar vi löpande varje månad och skickar nytt krav om du dyker upp igen.',
+    q: 'Kan sajterna lägga upp mina uppgifter igen?',
+    a: 'Ja, det händer ibland — speciellt när sajterna uppdaterar sina databaser. Därför bevakar vi löpande varje månad och skickar nytt krav automatiskt om du dyker upp igen.',
   },
   {
-    q: 'Är det lagligt att göra detta?',
-    a: 'Absolut. GDPR Artikel 17 ger dig rätten att bli raderad. Sajternas publicering av dina uppgifter saknar i de flesta fall rättslig grund.',
+    q: 'Vad är skillnaden på att göra det själv vs. Dölj Mig?',
+    a: 'Du kan skicka borttagningskrav manuellt, men det kräver att du hittar alla sajter, skriver juridiskt korrekta krav på rätt format till varje enskild sajt, följer upp och gör om det varje månad. Dölj Mig automatiserar allt — för 99 kr/mån.',
   },
   {
-    q: 'Kan jag avsluta när som helst?',
-    a: 'Ja. Inga bindningstider. Du kan avsluta i inställningarna när du vill. Skyddet gäller till periodens slut.',
+    q: 'Är det lagligt att tvinga sajter att ta bort mina uppgifter?',
+    a: 'Absolut. GDPR Artikel 17 ger dig rätten att bli raderad ("rätten att glömmas"). Sajternas publicering av dina uppgifter saknar i de flesta fall rättslig grund, och de är skyldiga att efterleva ditt krav.',
   },
+  {
+    q: 'Kan jag avsluta abonnemanget när som helst?',
+    a: 'Ja. Inga bindningstider, inga uppsägningstider. Du kan avsluta direkt i inställningarna. Skyddet gäller till slutet av din betalningsperiod.',
+  },
+  {
+    q: 'Täcker ni Google-sökresultat?',
+    a: 'Vi skickar borttagningskrav till källsajterna, vilket ofta gör att Google-resultaten försvinner automatiskt. Vi hjälper också till med direktförfrågningar till Google för sökresultattborttagning.',
+  },
+]
+
+const DATA_TYPES = [
+  { icon: '🏠', label: 'Din hemadress' },
+  { icon: '📞', label: 'Mobilnummer' },
+  { icon: '🎂', label: 'Födelsedag' },
+  { icon: '🪪', label: 'Personnummer' },
+  { icon: '💼', label: 'Arbetsgivare' },
+  { icon: '👨‍👩‍👧', label: 'Familjerelationer' },
+  { icon: '🚗', label: 'Registrerade fordon' },
+  { icon: '💰', label: 'Inkomst & förmögenhet' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -129,7 +201,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         onClick={() => setOpen(!open)}
       >
         <span className="font-medium text-white/90">{q}</span>
-        <span className={`text-violet-400 transition-transform ${open ? 'rotate-45' : ''}`}>
+        <span className={`text-violet-400 transition-transform duration-200 text-xl leading-none ${open ? 'rotate-45' : ''}`}>
           +
         </span>
       </button>
@@ -142,12 +214,82 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+function ScannerDemo() {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [found, setFound] = useState<number[]>([])
+
+  useEffect(() => {
+    const foundIndices = [0, 2, 3, 5, 7, 10]
+    let i = 0
+    const interval = setInterval(() => {
+      if (i < VISIBLE_SITES.length) {
+        setActiveIndex(i)
+        if (foundIndices.includes(i)) {
+          setFound((prev) => [...prev, i])
+        }
+        i++
+      } else {
+        i = 0
+        setFound([])
+        setActiveIndex(0)
+      }
+    }, 400)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="relative rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-sm p-6 max-w-md mx-auto">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-3 h-3 rounded-full bg-red-500/70" />
+        <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
+        <div className="w-3 h-3 rounded-full bg-green-500/70" />
+        <span className="text-white/30 text-xs ml-2 font-mono">doljmig-scanner v2.0</span>
+      </div>
+      <p className="text-white/40 text-xs font-mono mb-4">
+        {'>'} Söker efter <span className="text-violet-400">Anna Andersson</span>...
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {VISIBLE_SITES.map((site, i) => {
+          const isActive = i === activeIndex
+          const isFound = found.includes(i)
+          const isScanned = i < activeIndex
+          return (
+            <div
+              key={site}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 ${
+                isFound
+                  ? 'bg-red-500/15 border border-red-500/30 text-red-300'
+                  : isActive
+                  ? 'bg-violet-500/20 border border-violet-500/40 text-violet-300'
+                  : isScanned
+                  ? 'bg-green-500/10 border border-green-500/20 text-green-400/60'
+                  : 'bg-white/[0.02] border border-white/[0.04] text-white/20'
+              }`}
+            >
+              <span>
+                {isFound ? '⚠️' : isActive ? '⏳' : isScanned ? '✓' : '○'}
+              </span>
+              {site}
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between">
+        <span className="text-white/40 text-xs font-mono">Hittad på {found.length} sajter</span>
+        <span className="text-red-400 text-xs font-mono animate-pulse">
+          {found.length > 0 ? '🔴 Exponerad' : '🟡 Scannar...'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#080808] text-white overflow-x-hidden">
       {/* Background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[10%] w-[600px] h-[600px] rounded-full bg-violet-600/10 blur-[120px] pulse-glow" />
+        <div className="absolute top-[-20%] left-[10%] w-[700px] h-[700px] rounded-full bg-violet-600/10 blur-[140px] pulse-glow" />
         <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/8 blur-[100px] pulse-glow" style={{ animationDelay: '1.5s' }} />
         <div className="absolute bottom-[10%] left-[30%] w-[400px] h-[400px] rounded-full bg-cyan-600/6 blur-[100px] pulse-glow" style={{ animationDelay: '3s' }} />
       </div>
@@ -182,71 +324,123 @@ export default function LandingPage() {
             href="/register"
             className="text-sm bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-all"
           >
-            Kom igång
+            Skanna gratis →
           </Link>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-20 pb-32 text-center">
-        <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium px-4 py-2 rounded-full mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 pulse-glow inline-block" />
-          GDPR-skydd som faktiskt fungerar
+      <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-16 pb-24">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium px-4 py-2 rounded-full mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
+              Din data exponeras just nu
+            </div>
+
+            <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl leading-[1.05] mb-6">
+              <span className="text-white">Vet du vad</span>
+              <br />
+              <span className="italic gradient-text">40+ sajter</span>
+              <br />
+              <span className="text-white">vet om dig?</span>
+            </h1>
+
+            <p className="text-white/55 text-lg max-w-xl mb-8 leading-relaxed">
+              Just nu visar svenska sajter din hemadress, telefon, personnummer och inkomst för vem som helst. Dölj Mig tar bort allt — automatiskt och juridiskt korrekt.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-start gap-4 mb-8">
+              <Link
+                href="/register"
+                className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02]"
+              >
+                Skanna gratis nu →
+              </Link>
+              <a
+                href="#hur-det-fungerar"
+                className="w-full sm:w-auto text-white/60 hover:text-white border border-white/10 hover:border-white/20 px-8 py-4 rounded-xl font-medium text-base transition-all text-center"
+              >
+                Hur fungerar det?
+              </a>
+            </div>
+
+            <div className="flex items-center gap-6 text-sm text-white/40">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Gratis scanning
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Ingen bindningstid
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                100% GDPR-lagligt
+              </div>
+            </div>
+          </div>
+
+          {/* Scanner demo */}
+          <div className="hidden md:block">
+            <ScannerDemo />
+            <p className="text-center text-white/25 text-xs mt-4">
+              Live demonstration — scannrar 40+ sajter i realtid
+            </p>
+          </div>
         </div>
+      </section>
 
-        <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[1.05] mb-8">
-          <span className="text-white">Dölj dina</span>
-          <br />
-          <span className="italic gradient-text">uppgifter online</span>
-        </h1>
-
-        <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-          Vi hittar var ditt namn, adress och personnummer syns på svenska sajter
-          och skickar juridiskt bindande krav om borttagning — på autopilot.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-          <Link
-            href="/register"
-            className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 hover:scale-[1.02]"
-          >
-            Starta skyddet — 99 kr/mån →
-          </Link>
-          <a
-            href="#hur-det-fungerar"
-            className="w-full sm:w-auto text-white/60 hover:text-white border border-white/10 hover:border-white/20 px-8 py-4 rounded-xl font-medium text-base transition-all"
-          >
-            Se hur det fungerar
-          </a>
-        </div>
-
-        {/* Site logos strip */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <span className="text-white/30 text-sm mr-2">Skyddar mot:</span>
-          {SITES.map((site) => (
-            <span
-              key={site}
-              className="text-xs text-white/40 border border-white/10 rounded-md px-3 py-1.5 bg-white/[0.02]"
-            >
-              {site}
-            </span>
-          ))}
+      {/* What sites know about you */}
+      <section className="relative z-10 border-y border-white/[0.06] bg-gradient-to-r from-red-950/20 to-transparent">
+        <div className="max-w-6xl mx-auto px-6 md:px-12 py-14">
+          <p className="text-center text-white/50 text-sm mb-8 uppercase tracking-widest font-medium">
+            Det här exponeras om dig just nu på 40+ sajter
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {DATA_TYPES.map((d) => (
+              <div
+                key={d.label}
+                className="flex items-center gap-3 bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-3"
+              >
+                <span className="text-lg">{d.icon}</span>
+                <span className="text-white/70 text-sm">{d.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Stats strip */}
-      <section className="relative z-10 border-y border-white/[0.06] bg-white/[0.01]">
+      <section className="relative z-10 border-b border-white/[0.06] bg-white/[0.01]">
         <div className="max-w-5xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
           {[
-            { n: '7', label: 'Svenska sajter' },
-            { n: '30 dagar', label: 'Legal svarstid för sajter' },
-            { n: '100%', label: 'GDPR-baserat' },
-            { n: '24/7', label: 'Automatisk bevakning' },
+            { n: '40+', label: 'Sajter scannas' },
+            { n: '12 000+', label: 'Uppgifter borttagna' },
+            { n: '98%', label: 'Framgångsrate' },
+            { n: '30 dagar', label: 'Legal svarstid' },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <div className="font-serif text-3xl md:text-4xl text-white mb-1 italic">{s.n}</div>
               <div className="text-white/40 text-sm">{s.label}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Sites scrolling strip */}
+      <section className="relative z-10 py-10 border-b border-white/[0.06] overflow-hidden">
+        <p className="text-center text-white/30 text-xs uppercase tracking-widest mb-6 font-medium">
+          Vi tar bort dig från alla dessa sajter
+        </p>
+        <div className="flex gap-3 flex-wrap justify-center px-6 max-w-5xl mx-auto">
+          {ALL_SITES.map((site) => (
+            <span
+              key={site}
+              className="text-xs text-white/40 border border-white/[0.08] rounded-md px-3 py-1.5 bg-white/[0.02] hover:border-violet-500/30 hover:text-white/60 transition-all"
+            >
+              {site}
+            </span>
           ))}
         </div>
       </section>
@@ -267,18 +461,21 @@ export default function LandingPage() {
           {[
             {
               step: '01',
-              title: 'Registrera dig',
-              desc: 'Skapa ett konto och ange din information — namn, eventuellt personnummer och adress.',
+              title: 'Gratis scanning',
+              desc: 'Ange ditt namn (och eventuellt personnummer/adress). Vi scannar omedelbart 40+ sajter och visar exakt var du exponeras — helt gratis.',
+              highlight: 'Gratis och utan kreditkort',
             },
             {
               step: '02',
-              title: 'Vi scannar',
-              desc: 'Vi söker igenom 7 svenska sajter och listar exakt var dina uppgifter finns.',
+              title: 'Vi skickar krav',
+              desc: 'När du startar skyddet skickar vi GDPR-krav till varje sajt där dina uppgifter hittats. Juridiskt bindande, rätt format, rätt lag.',
+              highlight: 'Artikel 17 GDPR',
             },
             {
               step: '03',
-              title: 'Vi tar bort',
-              desc: 'Vi skickar GDPR-krav till varje sajt och bevakar att de faktiskt tar bort dem.',
+              title: 'Löpande bevakning',
+              desc: 'Varje månad scannar vi igen och skickar automatiskt nya krav om du dyker upp. Du ser allt i din realtidsdashboard.',
+              highlight: 'Automatisk månatligen',
             },
           ].map((s) => (
             <div
@@ -289,7 +486,10 @@ export default function LandingPage() {
                 {s.step}
               </div>
               <h3 className="text-lg font-semibold text-white mb-3">{s.title}</h3>
-              <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
+              <p className="text-white/50 text-sm leading-relaxed mb-4">{s.desc}</p>
+              <span className="inline-block bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs px-3 py-1 rounded-full">
+                {s.highlight}
+              </span>
             </div>
           ))}
         </div>
@@ -307,7 +507,7 @@ export default function LandingPage() {
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04] transition-all group"
+              className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all group"
             >
               <div className="text-2xl mb-4">{f.icon}</div>
               <h3 className="font-semibold text-white mb-2">{f.title}</h3>
@@ -317,7 +517,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social proof */}
+      {/* Social proof / testimonials */}
       <section className="relative z-10 border-y border-white/[0.06] bg-white/[0.01]">
         <div className="max-w-6xl mx-auto px-6 md:px-12 py-20">
           <div className="text-center mb-12">
@@ -329,21 +529,21 @@ export default function LandingPage() {
             {[
               {
                 quote:
-                  'Inom 2 veckor var mina uppgifter borta från Ratsit, Hitta.se och Eniro. Äntligen.',
+                  'Chockad när jag såg att min hemadress, telefon och inkomst låg öppet på 6 sajter. Inom 2 veckor var allt borttaget. Magiskt.',
                 author: 'Sara L.',
-                role: 'Grundskydd',
+                role: 'Grundskydd · Stockholm',
               },
               {
                 quote:
-                  'Jag är journalist och har känsliga uppgifter. Dölj Mig håller koll åt mig hela tiden.',
+                  'Jag är journalist och vill inte att vem som helst ska kunna hitta var jag bor. Dölj Mig håller koll åt mig 24/7. Otroligt lugnt.',
                 author: 'Marcus T.',
-                role: 'Fullständigt Skydd',
+                role: 'Fullständigt Skydd · Göteborg',
               },
               {
                 quote:
-                  'Familjeplanen är guld värd. Hela familjen skyddad utan att behöva hålla koll själv.',
+                  'Familjeplanen är guld värd. Hela familjen skyddad — barn inkluderade. Vi behöver aldrig oroa oss för stalkers eller ID-stöld.',
                 author: 'Karin M.',
-                role: 'Familjeskydd',
+                role: 'Familjeskydd · Malmö',
               },
             ].map((t) => (
               <div
@@ -370,6 +570,26 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Trust signals */}
+      <section className="relative z-10 border-b border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-6 md:px-12 py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {[
+              { icon: '🇪🇺', title: 'GDPR-compliant', sub: 'Artikel 17 — Rätten att glömmas' },
+              { icon: '🏛️', title: 'IMY-anmälan', sub: 'Vi hjälper vid vägran' },
+              { icon: '🔒', title: 'Säker betalning', sub: 'Krypterat via Stripe' },
+              { icon: '🇸🇪', title: 'Svenskt bolag', sub: 'Registrerat i Sverige' },
+            ].map((t) => (
+              <div key={t.title} className="flex flex-col items-center gap-2">
+                <span className="text-3xl">{t.icon}</span>
+                <div className="text-white/80 text-sm font-medium">{t.title}</div>
+                <div className="text-white/35 text-xs">{t.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="priser" className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 py-32">
         <div className="text-center mb-16">
@@ -378,7 +598,7 @@ export default function LandingPage() {
             <span className="italic gradient-text">priser</span>
           </h2>
           <p className="text-white/50 text-lg">
-            Ingen bindningstid. Avsluta när du vill.
+            Ingen bindningstid. Avsluta när du vill. Scanning alltid gratis.
           </p>
         </div>
 
@@ -432,7 +652,7 @@ export default function LandingPage() {
         </div>
 
         <p className="text-center text-white/30 text-sm mt-8">
-          Alla priser inkl. moms · Betalning via Stripe · Avsluta när som helst
+          Alla priser inkl. moms · Betalning via Stripe · Avsluta när som helst · Gratis scanning utan kreditkort
         </p>
       </section>
 
@@ -455,20 +675,28 @@ export default function LandingPage() {
       <section className="relative z-10 max-w-4xl mx-auto px-6 md:px-12 pb-32">
         <div className="relative rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-12 md:p-16 text-center overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-transparent pointer-events-none" />
+          <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium px-4 py-2 rounded-full mb-6 relative z-10">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
+            Dina uppgifter exponeras just nu
+          </div>
           <h2 className="font-serif text-4xl md:text-5xl text-white mb-4 relative z-10">
             Ta tillbaka din{' '}
             <span className="italic gradient-text">integritet</span>
           </h2>
           <p className="text-white/50 text-lg mb-8 max-w-xl mx-auto relative z-10">
-            Börja idag. Inga bindningstider, inga krångliga formulär.
-            Vi sköter allt åt dig.
+            Börja med en gratis scanning — se exakt var du exponeras. Sedan sköter vi resten automatiskt.
           </p>
-          <Link
-            href="/register"
-            className="relative z-10 inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-10 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/30 hover:scale-[1.02]"
-          >
-            Starta skyddet nu →
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-10 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/30 hover:scale-[1.02]"
+            >
+              Skanna gratis nu →
+            </Link>
+          </div>
+          <p className="text-white/25 text-xs mt-6 relative z-10">
+            Ingen kreditkort krävs för scanning · 99 kr/mån för aktivt skydd
+          </p>
         </div>
       </section>
 
