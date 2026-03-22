@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 const ALL_SITES = [
   'Ratsit.se',
@@ -25,7 +26,6 @@ const ALL_SITES = [
   'Proff.se',
   'Allabolag.se',
   'Bolagsverket.se',
-  'BankID-kollen.se',
   'Kompass.se',
   'Dun.se',
   'Bisnode.se',
@@ -39,13 +39,14 @@ const ALL_SITES = [
   'LinkedIn.se',
   'Instagram.se',
   'TikTok.com',
-  'Reddit.com',
   'Flashback.org',
   'Familysearch.org',
   'Ancestry.com',
   'MyHeritage.se',
   'Spokeo.com',
   'PeopleFinder.se',
+  'Mrkoll.se',
+  'Koll.se',
 ]
 
 const VISIBLE_SITES = [
@@ -146,7 +147,7 @@ const PLANS = [
   },
 ]
 
-const FAQ = [
+const FAQ_ITEMS = [
   {
     q: 'Hur lång tid tar det att ta bort mina uppgifter?',
     a: 'Vi skickar GDPR-kravet direkt. Sajterna är lagligt skyldiga att svara inom 30 dagar. De flesta tar bort uppgifterna inom 1–2 veckor. Du kan följa status i realtid i din dashboard.',
@@ -175,10 +176,6 @@ const FAQ = [
     q: 'Kan jag avsluta abonnemanget när som helst?',
     a: 'Ja. Inga bindningstider, inga uppsägningstider. Du kan avsluta direkt i inställningarna. Skyddet gäller till slutet av din betalningsperiod.',
   },
-  {
-    q: 'Täcker ni Google-sökresultat?',
-    a: 'Vi skickar borttagningskrav till källsajterna, vilket ofta gör att Google-resultaten försvinner automatiskt. Vi hjälper också till med direktförfrågningar till Google för sökresultattborttagning.',
-  },
 ]
 
 const DATA_TYPES = [
@@ -192,24 +189,65 @@ const DATA_TYPES = [
   { icon: '💰', label: 'Inkomst & förmögenhet' },
 ]
 
+const COMPARISON_ROWS = [
+  { label: 'Automatisk borttagning', others: false, us: true },
+  { label: 'Juridiskt korrekta GDPR-krav', others: false, us: true },
+  { label: 'Täcker 40+ sajter', others: false, us: true },
+  { label: 'Löpande månatlig bevakning', others: false, us: true },
+  { label: 'Realtidsdashboard', others: false, us: true },
+  { label: 'IMY-anmälan vid vägran', others: false, us: true },
+  { label: 'Familjeskydd (upp till 4 pers)', others: false, us: true },
+  { label: 'Ingen bindningstid', others: false, us: true },
+]
+
+const TESTIMONIALS = [
+  {
+    quote:
+      'Chockad när jag såg att min hemadress, telefon och inkomst låg öppet på 6 sajter. Inom 2 veckor var allt borttaget. Magiskt.',
+    author: 'Sara L.',
+    role: 'Grundskydd · Stockholm',
+    stars: 5,
+  },
+  {
+    quote:
+      'Jag är journalist och vill inte att vem som helst ska kunna hitta var jag bor. Dölj Mig håller koll åt mig 24/7. Otroligt lugnt.',
+    author: 'Marcus T.',
+    role: 'Fullständigt Skydd · Göteborg',
+    stars: 5,
+  },
+  {
+    quote:
+      'Familjeplanen är guld värd. Hela familjen skyddad — barn inkluderade. Vi behöver aldrig oroa oss för stalkers eller ID-stöld.',
+    author: 'Karin M.',
+    role: 'Familjeskydd · Malmö',
+    stars: 5,
+  },
+]
+
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border border-white/[0.06] rounded-xl overflow-hidden">
+    <div className="border border-white/[0.07] rounded-xl overflow-hidden transition-all">
       <button
-        className="w-full text-left px-6 py-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+        className="w-full text-left px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors"
         onClick={() => setOpen(!open)}
       >
-        <span className="font-medium text-white/90">{q}</span>
-        <span className={`text-violet-400 transition-transform duration-200 text-xl leading-none ${open ? 'rotate-45' : ''}`}>
+        <span className="font-medium text-white/90 pr-4">{q}</span>
+        <span
+          className={`text-violet-400 transition-transform duration-300 text-2xl leading-none flex-shrink-0 ${
+            open ? 'rotate-45' : ''
+          }`}
+        >
           +
         </span>
       </button>
-      {open && (
-        <div className="px-6 pb-5 text-white/60 text-sm leading-relaxed border-t border-white/[0.06] pt-4">
+      <div
+        className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-48' : 'max-h-0'}`}
+      >
+        <div className="px-6 pb-5 text-white/55 text-sm leading-relaxed border-t border-white/[0.06] pt-4">
           {a}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -233,17 +271,17 @@ function ScannerDemo() {
         setFound([])
         setActiveIndex(0)
       }
-    }, 400)
+    }, 420)
     return () => clearInterval(interval)
   }, [])
 
   return (
-    <div className="relative rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-sm p-6 max-w-md mx-auto">
+    <div className="relative rounded-2xl border border-white/[0.08] bg-black/50 backdrop-blur-sm p-6 max-w-md mx-auto shadow-2xl shadow-violet-900/20">
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-3 h-3 rounded-full bg-red-500/70" />
-        <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
-        <div className="w-3 h-3 rounded-full bg-green-500/70" />
-        <span className="text-white/30 text-xs ml-2 font-mono">doljmig-scanner v2.0</span>
+        <div className="w-3 h-3 rounded-full bg-red-500/80" />
+        <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+        <div className="w-3 h-3 rounded-full bg-green-500/80" />
+        <span className="text-white/25 text-xs ml-2 font-mono">doljmig-scanner v2.0</span>
       </div>
       <p className="text-white/40 text-xs font-mono mb-4">
         {'>'} Söker efter <span className="text-violet-400">Anna Andersson</span>...
@@ -266,9 +304,7 @@ function ScannerDemo() {
                   : 'bg-white/[0.02] border border-white/[0.04] text-white/20'
               }`}
             >
-              <span>
-                {isFound ? '⚠️' : isActive ? '⏳' : isScanned ? '✓' : '○'}
-              </span>
+              <span>{isFound ? '⚠️' : isActive ? '⏳' : isScanned ? '✓' : '○'}</span>
               {site}
             </div>
           )
@@ -284,27 +320,174 @@ function ScannerDemo() {
   )
 }
 
+function HeroForm() {
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [pnr, setPnr] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (name) params.set('name', name)
+    if (pnr) params.set('pnr', pnr)
+    router.push(`/register?${params.toString()}`)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full max-w-md">
+      <div className="bg-black/40 border border-white/10 rounded-2xl p-1.5 backdrop-blur-sm">
+        <div className="space-y-1.5 mb-1.5">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ditt fullständiga namn"
+            required
+            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50 focus:bg-white/[0.08] transition-all"
+          />
+          <input
+            type="text"
+            value={pnr}
+            onChange={(e) => setPnr(e.target.value)}
+            placeholder="Personnummer (valfritt) — xxxxxx-xxxx"
+            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50 focus:bg-white/[0.08] transition-all"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading || !name.trim()}
+          className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 hover:scale-[1.01]"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Scannar...
+            </span>
+          ) : (
+            '🔍 Skanna mig gratis nu →'
+          )}
+        </button>
+      </div>
+      <p className="text-white/25 text-xs mt-3 text-center">
+        Gratis scanning · Inget kreditkort krävs · 100% GDPR-säkert
+      </p>
+    </form>
+  )
+}
+
+function SiteTicker() {
+  const tickerRef = useRef<HTMLDivElement>(null)
+  // Duplicate sites for seamless infinite scroll
+  const doubled = [...ALL_SITES, ...ALL_SITES]
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Fade edges */}
+      <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#080808] to-transparent z-10 pointer-events-none" />
+      <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#080808] to-transparent z-10 pointer-events-none" />
+
+      <div
+        ref={tickerRef}
+        className="flex gap-3 whitespace-nowrap"
+        style={{
+          animation: 'ticker-scroll 40s linear infinite',
+        }}
+      >
+        {doubled.map((site, i) => (
+          <span
+            key={`${site}-${i}`}
+            className="inline-flex items-center gap-1.5 text-xs text-white/50 border border-white/[0.08] rounded-full px-4 py-2 bg-white/[0.02] flex-shrink-0"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500/60 inline-block" />
+            {site}
+          </span>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes ticker-scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#080808] text-white overflow-x-hidden">
+      {/* CSS animations */}
+      <style jsx global>{`
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        .pulse-glow {
+          animation: pulse-glow 6s ease-in-out infinite;
+        }
+        @keyframes gradient-shift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .gradient-text {
+          background: linear-gradient(135deg, #a78bfa, #818cf8, #c4b5fd);
+          background-size: 200% 200%;
+          animation: gradient-shift 4s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .glow-violet {
+          box-shadow: 0 0 40px rgba(139, 92, 246, 0.15), inset 0 0 40px rgba(139, 92, 246, 0.03);
+        }
+        @keyframes float-up {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-float-up {
+          animation: float-up 0.6s ease forwards;
+        }
+        @keyframes count-up {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       {/* Background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[10%] w-[700px] h-[700px] rounded-full bg-violet-600/10 blur-[140px] pulse-glow" />
-        <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/8 blur-[100px] pulse-glow" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute bottom-[10%] left-[30%] w-[400px] h-[400px] rounded-full bg-cyan-600/6 blur-[100px] pulse-glow" style={{ animationDelay: '3s' }} />
+        <div
+          className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/8 blur-[100px] pulse-glow"
+          style={{ animationDelay: '1.5s' }}
+        />
+        <div
+          className="absolute bottom-[10%] left-[30%] w-[400px] h-[400px] rounded-full bg-cyan-600/5 blur-[100px] pulse-glow"
+          style={{ animationDelay: '3s' }}
+        />
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-sm font-bold">
+      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 max-w-7xl mx-auto border-b border-white/[0.04]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-violet-500/30">
             D
           </div>
           <span className="font-semibold text-white">Dölj Mig</span>
         </div>
-        <div className="hidden md:flex items-center gap-8 text-sm text-white/60">
+        <div className="hidden md:flex items-center gap-8 text-sm text-white/50">
           <a href="#hur-det-fungerar" className="hover:text-white transition-colors">
             Hur det fungerar
+          </a>
+          <a href="#jamforelse" className="hover:text-white transition-colors">
+            Jämförelse
           </a>
           <a href="#priser" className="hover:text-white transition-colors">
             Priser
@@ -316,94 +499,96 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="text-sm text-white/60 hover:text-white transition-colors px-4 py-2"
+            className="text-sm text-white/50 hover:text-white transition-colors px-4 py-2 hidden sm:block"
           >
             Logga in
           </Link>
           <Link
             href="/register"
-            className="text-sm bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-all"
+            className="text-sm bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-violet-500/20"
           >
             Skanna gratis →
           </Link>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-16 pb-24">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
+      {/* ─── HERO ─── */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-20 pb-16">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left: copy + form */}
           <div>
             <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium px-4 py-2 rounded-full mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
-              Din data exponeras just nu
+              Din data exponeras just nu — på 40+ sajter
             </div>
 
-            <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl leading-[1.05] mb-6">
+            <h1 className="font-serif text-5xl md:text-6xl lg:text-[3.8rem] xl:text-[4.5rem] leading-[1.05] mb-6">
               <span className="text-white">Vet du vad</span>
               <br />
               <span className="italic gradient-text">40+ sajter</span>
               <br />
-              <span className="text-white">vet om dig?</span>
+              <span className="text-white">vet om dig just nu?</span>
             </h1>
 
-            <p className="text-white/55 text-lg max-w-xl mb-8 leading-relaxed">
-              Just nu visar svenska sajter din hemadress, telefon, personnummer och inkomst för vem som helst. Dölj Mig tar bort allt — automatiskt och juridiskt korrekt.
+            <p className="text-white/55 text-lg max-w-lg mb-10 leading-relaxed">
+              Ditt namn, adress, inkomst och familj finns på Ratsit, MrKoll, Hitta och 37 sajter
+              till — synliga för vem som helst. Vi tar bort allt, juridiskt och automatiskt.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-start gap-4 mb-8">
-              <Link
-                href="/register"
-                className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02]"
-              >
-                Skanna gratis nu →
-              </Link>
-              <a
-                href="#hur-det-fungerar"
-                className="w-full sm:w-auto text-white/60 hover:text-white border border-white/10 hover:border-white/20 px-8 py-4 rounded-xl font-medium text-base transition-all text-center"
-              >
-                Hur fungerar det?
-              </a>
-            </div>
+            {/* ★ THE HERO FORM ★ */}
+            <HeroForm />
 
-            <div className="flex items-center gap-6 text-sm text-white/40">
-              <div className="flex items-center gap-2">
-                <span className="text-green-400">✓</span>
-                Gratis scanning
+            {/* Social proof micro */}
+            <div className="flex items-center gap-4 mt-6">
+              <div className="flex -space-x-2">
+                {['S', 'M', 'K', 'J'].map((l, i) => (
+                  <div
+                    key={l}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 border-2 border-[#080808] flex items-center justify-center text-xs font-bold text-white/90"
+                    style={{ zIndex: 4 - i }}
+                  >
+                    {l}
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-400">✓</span>
-                Ingen bindningstid
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-400">✓</span>
-                100% GDPR-lagligt
+              <div className="text-white/40 text-sm">
+                <span className="text-yellow-400">★★★★★</span>
+                <span className="ml-2">500+ skyddade sedan igår</span>
               </div>
             </div>
           </div>
 
-          {/* Scanner demo */}
-          <div className="hidden md:block">
+          {/* Right: scanner */}
+          <div className="hidden lg:block">
             <ScannerDemo />
-            <p className="text-center text-white/25 text-xs mt-4">
-              Live demonstration — scannrar 40+ sajter i realtid
+            <p className="text-center text-white/20 text-xs mt-4">
+              Live demonstration — scannar 40+ sajter i realtid
             </p>
           </div>
         </div>
       </section>
 
-      {/* What sites know about you */}
-      <section className="relative z-10 border-y border-white/[0.06] bg-gradient-to-r from-red-950/20 to-transparent">
+      {/* ─── SITE TICKER ─── */}
+      <section className="relative z-10 py-8 border-y border-white/[0.05] bg-black/20 overflow-hidden">
+        <p className="text-center text-white/30 text-xs uppercase tracking-widest mb-6 font-medium">
+          Vi tar bort dig från alla dessa sajter
+        </p>
+        <SiteTicker />
+      </section>
+
+      {/* ─── WHAT THEY KNOW ─── */}
+      <section className="relative z-10 border-b border-white/[0.05] bg-gradient-to-r from-red-950/15 to-transparent">
         <div className="max-w-6xl mx-auto px-6 md:px-12 py-14">
-          <p className="text-center text-white/50 text-sm mb-8 uppercase tracking-widest font-medium">
-            Det här exponeras om dig just nu på 40+ sajter
+          <p className="text-center text-white/45 text-sm mb-8 uppercase tracking-widest font-medium">
+            Det här exponeras om dig just nu
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {DATA_TYPES.map((d) => (
               <div
                 key={d.label}
-                className="flex items-center gap-3 bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-3"
+                className="flex items-center gap-3 bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-3.5 hover:bg-red-500/10 transition-colors"
               >
-                <span className="text-lg">{d.icon}</span>
+                <span className="text-xl">{d.icon}</span>
                 <span className="text-white/70 text-sm">{d.label}</span>
               </div>
             ))}
@@ -411,8 +596,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats strip */}
-      <section className="relative z-10 border-b border-white/[0.06] bg-white/[0.01]">
+      {/* ─── STATS ─── */}
+      <section className="relative z-10 border-b border-white/[0.05] bg-white/[0.01]">
         <div className="max-w-5xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
           {[
             { n: '40+', label: 'Sajter scannas' },
@@ -421,148 +606,200 @@ export default function LandingPage() {
             { n: '30 dagar', label: 'Legal svarstid' },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <div className="font-serif text-3xl md:text-4xl text-white mb-1 italic">{s.n}</div>
+              <div className="font-serif text-3xl md:text-4xl text-white mb-1 italic gradient-text">
+                {s.n}
+              </div>
               <div className="text-white/40 text-sm">{s.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Sites scrolling strip */}
-      <section className="relative z-10 py-10 border-b border-white/[0.06] overflow-hidden">
-        <p className="text-center text-white/30 text-xs uppercase tracking-widest mb-6 font-medium">
-          Vi tar bort dig från alla dessa sajter
-        </p>
-        <div className="flex gap-3 flex-wrap justify-center px-6 max-w-5xl mx-auto">
-          {ALL_SITES.map((site) => (
-            <span
-              key={site}
-              className="text-xs text-white/40 border border-white/[0.08] rounded-md px-3 py-1.5 bg-white/[0.02] hover:border-violet-500/30 hover:text-white/60 transition-all"
-            >
-              {site}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
+      {/* ─── HOW IT WORKS ─── */}
       <section id="hur-det-fungerar" className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 py-32">
         <div className="text-center mb-16">
+          <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
+            Så enkelt är det
+          </p>
           <h2 className="font-serif text-4xl md:text-5xl text-white mb-4">
             Tre steg till{' '}
             <span className="italic gradient-text">full integritet</span>
           </h2>
-          <p className="text-white/50 text-lg max-w-xl mx-auto">
+          <p className="text-white/45 text-lg max-w-xl mx-auto">
             Från registrering till skyddad — på under 5 minuter.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              step: '01',
-              title: 'Gratis scanning',
-              desc: 'Ange ditt namn (och eventuellt personnummer/adress). Vi scannar omedelbart 40+ sajter och visar exakt var du exponeras — helt gratis.',
-              highlight: 'Gratis och utan kreditkort',
-            },
-            {
-              step: '02',
-              title: 'Vi skickar krav',
-              desc: 'När du startar skyddet skickar vi GDPR-krav till varje sajt där dina uppgifter hittats. Juridiskt bindande, rätt format, rätt lag.',
-              highlight: 'Artikel 17 GDPR',
-            },
-            {
-              step: '03',
-              title: 'Löpande bevakning',
-              desc: 'Varje månad scannar vi igen och skickar automatiskt nya krav om du dyker upp. Du ser allt i din realtidsdashboard.',
-              highlight: 'Automatisk månatligen',
-            },
-          ].map((s) => (
-            <div
-              key={s.step}
-              className="relative p-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] group hover:border-violet-500/30 transition-colors"
-            >
-              <div className="text-6xl font-serif italic text-violet-500/20 mb-4 group-hover:text-violet-500/30 transition-colors">
-                {s.step}
+        <div className="relative">
+          {/* Connecting line */}
+          <div className="hidden md:block absolute top-16 left-[16.66%] right-[16.66%] h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+
+          <div className="grid md:grid-cols-3 gap-6 relative">
+            {[
+              {
+                step: '01',
+                icon: '🔍',
+                title: 'Skanna',
+                desc: 'Ange ditt namn och personnummer. Vi söker igenom 40+ sajter och visar exakt var du exponeras — gratis, utan kreditkort.',
+                highlight: 'Gratis · Inga krav',
+              },
+              {
+                step: '02',
+                icon: '⚖️',
+                title: 'GDPR-borttagning',
+                desc: 'Vi skickar juridiskt bindande borttagningskrav till varje sajt med stöd i GDPR Artikel 17. De är skyldiga att svara inom 30 dagar.',
+                highlight: 'Juridiskt korrekt',
+              },
+              {
+                step: '03',
+                icon: '🔁',
+                title: 'Bevakning',
+                desc: 'Varje månad scannar vi igen och skickar automatiskt nya krav om du dyker upp. Du ser allt live i din dashboard.',
+                highlight: 'Automatisk · Alltid på',
+              },
+            ].map((s, idx) => (
+              <div
+                key={s.step}
+                className="relative p-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] group hover:border-violet-500/30 hover:bg-white/[0.035] transition-all"
+              >
+                <div className="absolute -top-4 left-8 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  {s.step}
+                </div>
+                <div className="text-3xl mb-5 mt-2">{s.icon}</div>
+                <h3 className="text-xl font-semibold text-white mb-3">{s.title}</h3>
+                <p className="text-white/50 text-sm leading-relaxed mb-5">{s.desc}</p>
+                <span className="inline-block bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-full">
+                  {s.highlight}
+                </span>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">{s.title}</h3>
-              <p className="text-white/50 text-sm leading-relaxed mb-4">{s.desc}</p>
-              <span className="inline-block bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs px-3 py-1 rounded-full">
-                {s.highlight}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Features grid */}
+      {/* ─── FEATURES GRID ─── */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pb-32">
         <div className="text-center mb-16">
+          <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
+            Vad du får
+          </p>
           <h2 className="font-serif text-4xl md:text-5xl text-white mb-4">
             Allt du behöver för{' '}
             <span className="italic gradient-text">integritetsskydd</span>
           </h2>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all group"
+              className="p-7 rounded-2xl border border-white/[0.07] bg-white/[0.02] hover:border-violet-500/25 hover:bg-white/[0.04] transition-all group"
             >
-              <div className="text-2xl mb-4">{f.icon}</div>
-              <h3 className="font-semibold text-white mb-2">{f.title}</h3>
+              <div className="text-3xl mb-5">{f.icon}</div>
+              <h3 className="font-semibold text-white mb-2.5">{f.title}</h3>
               <p className="text-white/50 text-sm leading-relaxed">{f.description}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Social proof / testimonials */}
-      <section className="relative z-10 border-y border-white/[0.06] bg-white/[0.01]">
-        <div className="max-w-6xl mx-auto px-6 md:px-12 py-20">
-          <div className="text-center mb-12">
-            <p className="text-white/40 text-sm uppercase tracking-widest font-medium">
+      {/* ─── COMPARISON ─── */}
+      <section id="jamforelse" className="relative z-10 max-w-5xl mx-auto px-6 md:px-12 pb-32">
+        <div className="text-center mb-14">
+          <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
+            Varför Dölj Mig?
+          </p>
+          <h2 className="font-serif text-4xl md:text-5xl text-white mb-4">
+            Vi är inte som{' '}
+            <span className="italic gradient-text">andra tjänster</span>
+          </h2>
+          <p className="text-white/45 text-base max-w-lg mx-auto">
+            Andra tjänster ger dig manuella instruktioner. Vi gör jobbet åt dig — automatiskt och
+            juridiskt korrekt.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] overflow-hidden">
+          {/* Header */}
+          <div className="grid grid-cols-3 bg-white/[0.03] border-b border-white/[0.07]">
+            <div className="px-6 py-4 text-white/40 text-sm font-medium">Funktion</div>
+            <div className="px-6 py-4 text-white/50 text-sm font-medium text-center border-l border-white/[0.07]">
+              Andra tjänster
+            </div>
+            <div className="px-6 py-4 text-violet-300 text-sm font-semibold text-center border-l border-violet-500/20 bg-violet-500/[0.04]">
+              <span className="inline-flex items-center gap-2">
+                <span className="w-5 h-5 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
+                  D
+                </span>
+                Dölj Mig
+              </span>
+            </div>
+          </div>
+
+          {/* Rows */}
+          {COMPARISON_ROWS.map((row, i) => (
+            <div
+              key={row.label}
+              className={`grid grid-cols-3 border-b border-white/[0.05] last:border-b-0 ${
+                i % 2 === 0 ? '' : 'bg-white/[0.01]'
+              }`}
+            >
+              <div className="px-6 py-4 text-white/70 text-sm">{row.label}</div>
+              <div className="px-6 py-4 text-center border-l border-white/[0.05]">
+                <span className="text-red-400 text-lg">❌</span>
+              </div>
+              <div className="px-6 py-4 text-center border-l border-violet-500/10 bg-violet-500/[0.02]">
+                <span className="text-green-400 text-lg">✅</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-violet-500/25 hover:scale-[1.02]"
+          >
+            Börja med gratis scanning →
+          </Link>
+        </div>
+      </section>
+
+      {/* ─── TESTIMONIALS ─── */}
+      <section className="relative z-10 border-y border-white/[0.05] bg-white/[0.01]">
+        <div className="max-w-6xl mx-auto px-6 md:px-12 py-24">
+          <div className="text-center mb-14">
+            <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
               Vad våra kunder säger
             </p>
+            <h2 className="font-serif text-4xl text-white">
+              Riktiga människor,{' '}
+              <span className="italic gradient-text">riktiga resultat</span>
+            </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                quote:
-                  'Chockad när jag såg att min hemadress, telefon och inkomst låg öppet på 6 sajter. Inom 2 veckor var allt borttaget. Magiskt.',
-                author: 'Sara L.',
-                role: 'Grundskydd · Stockholm',
-              },
-              {
-                quote:
-                  'Jag är journalist och vill inte att vem som helst ska kunna hitta var jag bor. Dölj Mig håller koll åt mig 24/7. Otroligt lugnt.',
-                author: 'Marcus T.',
-                role: 'Fullständigt Skydd · Göteborg',
-              },
-              {
-                quote:
-                  'Familjeplanen är guld värd. Hela familjen skyddad — barn inkluderade. Vi behöver aldrig oroa oss för stalkers eller ID-stöld.',
-                author: 'Karin M.',
-                role: 'Familjeskydd · Malmö',
-              },
-            ].map((t) => (
+            {TESTIMONIALS.map((t) => (
               <div
                 key={t.author}
-                className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02]"
+                className="p-7 rounded-2xl border border-white/[0.07] bg-white/[0.02] hover:border-violet-500/20 transition-all"
               >
-                <div className="flex mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                <div className="flex mb-5">
+                  {Array.from({ length: t.stars }).map((_, i) => (
                     <span key={i} className="text-yellow-400 text-sm">
                       ★
                     </span>
                   ))}
                 </div>
-                <p className="text-white/80 text-sm leading-relaxed mb-5 italic">
+                <p className="text-white/75 text-sm leading-relaxed mb-6 italic">
                   &ldquo;{t.quote}&rdquo;
                 </p>
-                <div>
-                  <div className="font-medium text-white text-sm">{t.author}</div>
-                  <div className="text-white/40 text-xs">{t.role}</div>
+                <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center text-sm font-bold text-white">
+                    {t.author[0]}
+                  </div>
+                  <div>
+                    <div className="font-medium text-white text-sm">{t.author}</div>
+                    <div className="text-white/35 text-xs">{t.role}</div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -570,8 +807,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust signals */}
-      <section className="relative z-10 border-b border-white/[0.06]">
+      {/* ─── TRUST SIGNALS ─── */}
+      <section className="relative z-10 border-b border-white/[0.05]">
         <div className="max-w-5xl mx-auto px-6 md:px-12 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
@@ -580,24 +817,29 @@ export default function LandingPage() {
               { icon: '🔒', title: 'Säker betalning', sub: 'Krypterat via Stripe' },
               { icon: '🇸🇪', title: 'Svenskt bolag', sub: 'Registrerat i Sverige' },
             ].map((t) => (
-              <div key={t.title} className="flex flex-col items-center gap-2">
+              <div
+                key={t.title}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/[0.05] hover:border-white/[0.1] transition-colors"
+              >
                 <span className="text-3xl">{t.icon}</span>
                 <div className="text-white/80 text-sm font-medium">{t.title}</div>
-                <div className="text-white/35 text-xs">{t.sub}</div>
+                <div className="text-white/35 text-xs text-center">{t.sub}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* ─── PRICING ─── */}
       <section id="priser" className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 py-32">
         <div className="text-center mb-16">
+          <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
+            Priser
+          </p>
           <h2 className="font-serif text-4xl md:text-5xl text-white mb-4">
-            Enkla{' '}
-            <span className="italic gradient-text">priser</span>
+            Enkla <span className="italic gradient-text">priser</span>
           </h2>
-          <p className="text-white/50 text-lg">
+          <p className="text-white/45 text-lg">
             Ingen bindningstid. Avsluta när du vill. Scanning alltid gratis.
           </p>
         </div>
@@ -608,21 +850,21 @@ export default function LandingPage() {
               key={plan.name}
               className={`relative p-8 rounded-2xl border transition-all ${
                 plan.popular
-                  ? 'border-violet-500/50 bg-violet-500/[0.04] glow-violet'
-                  : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10'
+                  ? 'border-violet-500/50 bg-violet-500/[0.04] glow-violet scale-[1.02]'
+                  : 'border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12]'
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold px-4 py-1 rounded-full">
-                    Populärast
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg shadow-violet-500/30">
+                    ✨ Populärast
                   </span>
                 </div>
               )}
 
-              <div className="mb-6">
-                <h3 className="font-semibold text-white mb-1">{plan.name}</h3>
-                <div className="flex items-baseline gap-1">
+              <div className="mb-7">
+                <h3 className="font-semibold text-white mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1.5">
                   <span className="font-serif text-5xl text-white">{plan.price}</span>
                   <span className="text-white/40 text-sm">kr/mån</span>
                 </div>
@@ -630,7 +872,7 @@ export default function LandingPage() {
 
               <ul className="space-y-3 mb-8">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm text-white/70">
+                  <li key={f} className="flex items-start gap-3 text-sm text-white/65">
                     <span className="text-violet-400 mt-0.5 flex-shrink-0">✓</span>
                     {f}
                   </li>
@@ -639,9 +881,9 @@ export default function LandingPage() {
 
               <Link
                 href={`/register?plan=${plan.tier}`}
-                className={`block text-center py-3 rounded-xl font-semibold text-sm transition-all ${
+                className={`block text-center py-3.5 rounded-xl font-semibold text-sm transition-all ${
                   plan.popular
-                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20'
+                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40'
                     : 'border border-white/10 hover:border-white/20 text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -651,31 +893,34 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <p className="text-center text-white/30 text-sm mt-8">
-          Alla priser inkl. moms · Betalning via Stripe · Avsluta när som helst · Gratis scanning utan kreditkort
+        <p className="text-center text-white/25 text-sm mt-10">
+          Alla priser inkl. moms · Betalning via Stripe · Avsluta när som helst · Gratis scanning
+          utan kreditkort
         </p>
       </section>
 
-      {/* FAQ */}
+      {/* ─── FAQ ─── */}
       <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 md:px-12 pb-32">
-        <div className="text-center mb-12">
+        <div className="text-center mb-14">
+          <p className="text-violet-400/70 text-xs uppercase tracking-widest font-semibold mb-4">
+            Frågor & svar
+          </p>
           <h2 className="font-serif text-4xl md:text-5xl text-white mb-4">
-            Vanliga{' '}
-            <span className="italic gradient-text">frågor</span>
+            Vanliga <span className="italic gradient-text">frågor</span>
           </h2>
         </div>
         <div className="space-y-3">
-          {FAQ.map((item) => (
+          {FAQ_ITEMS.map((item) => (
             <FAQItem key={item.q} q={item.q} a={item.a} />
           ))}
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ─── FINAL CTA ─── */}
       <section className="relative z-10 max-w-4xl mx-auto px-6 md:px-12 pb-32">
-        <div className="relative rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-12 md:p-16 text-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-transparent pointer-events-none" />
-          <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium px-4 py-2 rounded-full mb-6 relative z-10">
+        <div className="relative rounded-3xl border border-violet-500/25 bg-gradient-to-br from-violet-500/10 via-indigo-500/5 to-transparent p-12 md:p-16 text-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/8 to-transparent pointer-events-none rounded-3xl" />
+          <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium px-4 py-2 rounded-full mb-7 relative z-10">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
             Dina uppgifter exponeras just nu
           </div>
@@ -683,27 +928,34 @@ export default function LandingPage() {
             Ta tillbaka din{' '}
             <span className="italic gradient-text">integritet</span>
           </h2>
-          <p className="text-white/50 text-lg mb-8 max-w-xl mx-auto relative z-10">
-            Börja med en gratis scanning — se exakt var du exponeras. Sedan sköter vi resten automatiskt.
+          <p className="text-white/50 text-lg mb-10 max-w-xl mx-auto relative z-10 leading-relaxed">
+            Börja med en gratis scanning — se exakt var du exponeras. Sedan sköter vi resten
+            automatiskt, varje månad.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-10 py-4 rounded-xl font-semibold text-base transition-all shadow-lg shadow-violet-500/30 hover:scale-[1.02]"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-10 py-4 rounded-xl font-semibold text-base transition-all shadow-xl shadow-violet-500/30 hover:shadow-violet-500/50 hover:scale-[1.02]"
             >
-              Skanna gratis nu →
+              🔍 Skanna mig gratis nu →
             </Link>
+            <a
+              href="#hur-det-fungerar"
+              className="text-white/50 hover:text-white transition-colors text-sm"
+            >
+              Hur fungerar det? ↓
+            </a>
           </div>
-          <p className="text-white/25 text-xs mt-6 relative z-10">
-            Ingen kreditkort krävs för scanning · 99 kr/mån för aktivt skydd
+          <p className="text-white/20 text-xs mt-7 relative z-10">
+            Inget kreditkort för scanning · 99 kr/mån för aktivt skydd · Avsluta när som helst
           </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/[0.06] bg-white/[0.01]">
-        <div className="max-w-6xl mx-auto px-6 md:px-12 py-12 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+      {/* ─── FOOTER ─── */}
+      <footer className="relative z-10 border-t border-white/[0.05] bg-white/[0.01]">
+        <div className="max-w-6xl mx-auto px-6 md:px-12 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold">
               D
             </div>
