@@ -226,11 +226,13 @@ const TESTIMONIALS = [
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
   return (
-    <div className="border border-white/[0.07] rounded-xl overflow-hidden transition-all">
+    <div className="border border-white/[0.07] rounded-xl overflow-hidden transition-colors hover:border-white/[0.12]">
       <button
         className="w-full text-left px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
       >
         <span className="font-medium text-white/90 pr-4">{q}</span>
         <span
@@ -242,10 +244,16 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         </span>
       </button>
       <div
-        className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-48' : 'max-h-0'}`}
+        style={{
+          display: 'grid',
+          gridTemplateRows: open ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.3s ease',
+        }}
       >
-        <div className="px-6 pb-5 text-white/55 text-sm leading-relaxed border-t border-white/[0.06] pt-4">
-          {a}
+        <div ref={contentRef} style={{ overflow: 'hidden' }}>
+          <div className="px-6 pb-5 text-white/55 text-sm leading-relaxed border-t border-white/[0.06] pt-4">
+            {a}
+          </div>
         </div>
       </div>
     </div>
@@ -421,9 +429,109 @@ function SiteTicker() {
   )
 }
 
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': 'https://dolj-mig.se/#organization',
+      name: 'Dölj Mig',
+      url: 'https://dolj-mig.se',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://dolj-mig.se/logo.png',
+      },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        email: 'hej@dolj-mig.se',
+        contactType: 'customer support',
+        availableLanguage: 'Swedish',
+      },
+      sameAs: [],
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://dolj-mig.se/#webapp',
+      name: 'Dölj Mig',
+      url: 'https://dolj-mig.se',
+      description:
+        'Automatisk borttagning av personuppgifter från över 40 svenska sajter via GDPR Artikel 17.',
+      applicationCategory: 'SecurityApplication',
+      operatingSystem: 'Web',
+      offers: [
+        {
+          '@type': 'Offer',
+          name: 'Grundskydd',
+          price: '99',
+          priceCurrency: 'SEK',
+          priceSpecification: {
+            '@type': 'UnitPriceSpecification',
+            billingDuration: 'P1M',
+          },
+        },
+        {
+          '@type': 'Offer',
+          name: 'Fullständigt Skydd',
+          price: '149',
+          priceCurrency: 'SEK',
+          priceSpecification: {
+            '@type': 'UnitPriceSpecification',
+            billingDuration: 'P1M',
+          },
+        },
+        {
+          '@type': 'Offer',
+          name: 'Familjeskydd',
+          price: '249',
+          priceCurrency: 'SEK',
+          priceSpecification: {
+            '@type': 'UnitPriceSpecification',
+            billingDuration: 'P1M',
+          },
+        },
+      ],
+      publisher: {
+        '@id': 'https://dolj-mig.se/#organization',
+      },
+    },
+    {
+      '@type': 'FAQPage',
+      '@id': 'https://dolj-mig.se/#faq',
+      mainEntity: FAQ_ITEMS.map(({ q, a }) => ({
+        '@type': 'Question',
+        name: q,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: a,
+        },
+      })),
+    },
+    {
+      '@type': 'WebSite',
+      '@id': 'https://dolj-mig.se/#website',
+      url: 'https://dolj-mig.se',
+      name: 'Dölj Mig',
+      publisher: {
+        '@id': 'https://dolj-mig.se/#organization',
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://dolj-mig.se/register?name={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#080808] text-white overflow-x-hidden">
+      {/* JSON-LD Schema.org */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
+
       {/* CSS animations */}
       <style jsx global>{`
         @keyframes pulse-glow {
